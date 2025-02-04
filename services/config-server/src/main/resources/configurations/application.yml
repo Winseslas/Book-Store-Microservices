@@ -1,0 +1,22 @@
+eureka:
+  instance:
+    hostname: localhost
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+name:
+  value: eureka
+spring:
+  cloud:
+    config:
+      override-system-properties: false
+  devtools:
+    restart:
+      enabled: true
+    livereload:
+      enabled: true
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0

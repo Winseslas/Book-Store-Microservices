@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: Config Server
+#  main:
+#    web-application-type: none
+  cloud:
+    config:
+      enabled: false
+      server:
+        native:
+          # enabled: true
+          search-locations: classpath:/configurations
+        git:
+          uri: https://github.com/Winseslas/Book-Store-Microservices.git
+          default-label: development
+          # search-paths: /config
+  devtools:
+    restart:
+      enabled: true
+    livereload:
+      enabled: true
+
+  profiles:
+    active: native
+
+server:
+  port: 8888
+
+logging:
+  level:
+    org:
+      springframework:
+        cloud:
+          config:
+            server: DEBUG
+#    root: ERROR
+#debug: true

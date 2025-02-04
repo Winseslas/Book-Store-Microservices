@@ -1,0 +1,54 @@
+app:
+  base-url: http://localhost:9091
+
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:6345/notificationmanager?useUnicode=true&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTC&currentSchema=bookstore
+    username: postgres
+    password: postgres
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+  devtools:
+    restart:
+      enabled: true
+    livereload:
+      enabled: true
+  jpa:
+    database: POSTGRESQL
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    properties:
+      javax:
+        persistence:
+          validation:
+            mode: callback
+    show-sql: false
+
+# Enable caching
+cache:
+  type: ehcache
+
+server:
+  port: 9091
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+
+logging:
+  level:
+    org:
+      hibernate: off # DEBUG
+      springframework:
+        web: DEBUG # DEBUG
+        jdbc:
+          datasource: off # DEBUG
+
+#debug: true

@@ -1,17 +1,14 @@
 package com.winseslas.microservices.bookStore.UserManager.model.response;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-/**
- * DTO for an error response.
- */
-@Getter
-@Setter
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ErrorResponse {
-    private String timestamp;
-    private int status;
-    private String error;
     private String message;
-    private String path;
 }

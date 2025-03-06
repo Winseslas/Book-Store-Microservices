@@ -1,20 +1,14 @@
 package com.winseslas.microservices.bookStore.UserManager.model.response;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-/**
- * DTO for an unauthorized response.
- */
-@Getter
-public class UnauthorizedResponse<T> {
-    private final String message = "Unauthorized";
-    @Setter
-    private T data;
-
-    public UnauthorizedResponse(T data) {
-        this.data = data;
-    }
-
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class UnauthorizedResponse {
+    private String message;
 }
-

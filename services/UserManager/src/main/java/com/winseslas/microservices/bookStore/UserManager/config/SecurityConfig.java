@@ -12,7 +12,6 @@ import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -38,8 +37,8 @@ public class SecurityConfig {
 
     /**
      * Configures the security filter chain for the application.
-     * 
-     * <p>This method sets up the security configurations such as disabling CORS and CSRF,
+     *
+     * <p>This method sets up the security configurations such as enabling CORS and CSRF,
      * permitting all requests to specific endpoints, requiring authentication for other requests,
      * setting the session management policy to stateless, adding a JWT authentication filter,
      * and configuring exception handling for unauthorized access.</p>
@@ -51,16 +50,44 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .cors(AbstractHttpConfigurer::disable)
-            .csrf(AbstractHttpConfigurer::disable)
-            .authorizeHttpRequests(auth -> auth.requestMatchers("/api/v1/auth/**", "/swagger-ui/**", "/api-docs/**").permitAll().anyRequest().authenticated())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-            .authenticationProvider(authenticationProvider())
-            .exceptionHandling(exception -> exception.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)));
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(csrf -> csrf.ignoringRequestMatchers(
+                        "/api/v1/auth/register",
+                        "/api/v1/auth/authenticate",
+                        "/api/v1/auth/confirm-account",
+                        "/api/v1/auth/forgot-password",
+                        "/api/v1/auth/reset-password",
+                        "/swagger-ui/**",
+                        "/api-docs/**"
+                ))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(
+                                "/api/v1/auth/register",
+                                "/api/v1/auth/authenticate",
+                                "/api/v1/auth/confirm-account",
+                                "/api/v1/auth/forgot-password",
+                                "/api/v1/auth/reset-password",
+                                "/swagger-ui/**",
+                                "/api-docs/**"
+                        ).permitAll()
+                        .anyRequest().authenticated()
+                )
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .authenticationProvider(authenticationProvider())
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)));
         return http.build();
     }
 
+    /**
+     * Creates and configures an {@link AuthenticationProvider} for the application.
+     *
+     * <p>This method sets up a {@link DaoAuthenticationProvider} with a user details service
+     * and a password encoder to handle authentication.</p>
+     *
+     * @return an {@link AuthenticationProvider} configured with a user details service and password encoder.
+     */
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
@@ -68,20 +95,30 @@ public class SecurityConfig {
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
-    }
-
+    
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
     /**
+     * Creates and configures an {@link AuthenticationManager} for the application.
+     *
+     * <p>This method creates an AuthenticationManager from the authentication configuration.
+     * The AuthenticationManager is responsible for processing authentication requests.</p>
+     *
+     * @param config the {@link AuthenticationConfiguration} to create the manager from
+     * @return the configured {@link AuthenticationManager}
+     * @throws Exception if there is an error creating the AuthenticationManager
+     */
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+
+    /**
      * Configures the CORS settings for the application.
-     * 
+     *
      * <p>This method sets up a CORS configuration that allows all origins, 
      * specifies allowed HTTP methods, and defines allowed and exposed headers.</p>
      *
@@ -92,8 +129,10 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of("*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("authorization", "content-type", "x-auth-token"));
-        configuration.setExposedHeaders(List.of("x-auth-token"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
+        configuration.setExposedHeaders(Arrays.asList("Authorization"));
+        configuration.setMaxAge(3600L);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

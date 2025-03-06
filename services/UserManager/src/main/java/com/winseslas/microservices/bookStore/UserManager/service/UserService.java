@@ -91,7 +91,6 @@ public class UserService {
             LOG.info("User found with ID: " + id);
             return Optional.of(mapToUserResponse(optionalUser.get()));
         } else {
-            LOG.warn("No user found with ID: " + id);
             return Optional.empty();
         }
     }
@@ -104,10 +103,8 @@ public class UserService {
      */
     @Transactional(readOnly = true)
     public boolean emailExists(String email) {
-        LOG.info("Checking if user exists with email: " + email);
-        boolean exists = this.userRepository.findByEmail(email).isPresent();
-        LOG.info("User existence check result: " + exists);
-        return exists;
+        LOG.info("Checking if email: " + email + " exists.");
+        return userRepository.findByEmail(email).isPresent();
     }
 
     /**

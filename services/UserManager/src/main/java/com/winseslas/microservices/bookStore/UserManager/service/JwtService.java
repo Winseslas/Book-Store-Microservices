@@ -1,9 +1,11 @@
-package com.winseslas.microservices.bookStore.UserManager.auth;
+package com.winseslas.microservices.bookStore.UserManager.service;
 
+import com.winseslas.microservices.bookStore.UserManager.config.JwtConfig;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -14,23 +16,23 @@ import java.util.Map;
 import java.util.function.Function;
 
 @Service
+@RequiredArgsConstructor
 public class JwtService {
-
-    private static final String SECRET_KEY = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
-    private static final long JWT_EXPIRATION_MS = 86400000; // 24h in milliseconds
     private static final long CONFIRMATION_EXPIRATION_MS = 900000; // 15m
     private static final long PASSWORD_RESET_EXPIRATION_MS = 1800000; // 30m
+
+    private final JwtConfig jwtConfig;
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
     public String generateToken(UserDetails userDetails) {
-        return buildToken(new HashMap<>(), userDetails, JWT_EXPIRATION_MS);
+        return buildToken(new HashMap<>(), userDetails, jwtConfig.getAccessTokenExpiration());
     }
 
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
-        return buildToken(extraClaims, userDetails, JWT_EXPIRATION_MS);
+        return buildToken(extraClaims, userDetails, jwtConfig.getAccessTokenExpiration());
     }
 
     public String generateConfirmationToken(UserDetails userDetails) {
@@ -43,6 +45,11 @@ public class JwtService {
                 userDetails,
                 PASSWORD_RESET_EXPIRATION_MS
         );
+    }
+
+    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+        final Claims claims = extractAllClaims(token);
+        return claimsResolver.apply(claims);
     }
 
     private String buildToken(Map<String, Object> claims, UserDetails userDetails, long expiration) {
@@ -59,7 +66,7 @@ public class JwtService {
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
-        return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
     }
 
     private boolean isTokenExpired(String token) {
@@ -70,10 +77,12 @@ public class JwtService {
         return extractClaim(token, Claims::getExpiration);
     }
 
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        return claimsResolver.apply(extractAllClaims(token));
-    }
-
+    /**
+     * Extract all claims from a JWT token.
+     *
+     * @param token the JWT token to parse
+     * @return the claims extracted from the token.
+     */
     private Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSignInKey())
@@ -83,10 +92,10 @@ public class JwtService {
     }
 
     public boolean isPasswordResetToken(String token) {
-        return Boolean.TRUE.equals(extractClaim(token, c -> c.get("password_reset", Boolean.class)));
+        return Boolean.TRUE.equals(extractAllClaims(token).get("password_reset", Boolean.class));
     }
 
     private SecretKey getSignInKey() {
-        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(SECRET_KEY));
+        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtConfig.getSecretKey()));
     }
 }

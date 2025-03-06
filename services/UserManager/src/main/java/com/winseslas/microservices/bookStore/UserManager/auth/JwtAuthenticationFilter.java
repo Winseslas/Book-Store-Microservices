@@ -1,5 +1,6 @@
 package com.winseslas.microservices.bookStore.UserManager.auth;
 
+import com.winseslas.microservices.bookStore.UserManager.service.JwtService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,6 +16,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -23,12 +26,34 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
 
+    private static final List<String> PUBLIC_ENDPOINTS = Arrays.asList(
+            "/api/v1/auth/register",
+            "/api/v1/auth/authenticate",
+            "/api/v1/auth/confirm-account",
+            "/api/v1/auth/forgot-password",
+            "/api/v1/auth/reset-password",
+            "/swagger-ui",
+            "/api-docs"
+    );
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getServletPath();
+        return PUBLIC_ENDPOINTS.stream()
+                .anyMatch(endpoint -> path.startsWith(endpoint));
+    }
+
     @Override
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
+        if (shouldNotFilter(request)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
         final String userEmail;

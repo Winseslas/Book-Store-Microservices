@@ -1,21 +1,18 @@
 package com.winseslas.microservices.bookStore.UserManager.model.response;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-/**
- * DTO for a successful response.
- *
- * @param <T> The type of the data object in the response.
- */
-@Getter
-@Setter
-public class SuccessResponse<T> {
-    private final boolean success = true;
-    private T data;
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class SuccessResponse {
+    private String message;
 
-    public SuccessResponse(T data) {
-        this.data = data;
+    public static SuccessResponse message(String message) {
+        return builder().message(message).build();
     }
-
 }

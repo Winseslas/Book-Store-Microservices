@@ -44,7 +44,7 @@ import java.util.stream.Collectors;
 @Entity
 @EntityListeners(AuditingEntityListener.class)
 @NoArgsConstructor
-@Table(name = "user", indexes = {
+@Table(name = "users", indexes = {
         @Index(name = "idx_user_email", columnList = "email")
 })
 public class User implements UserDetails {
@@ -91,8 +91,8 @@ public class User implements UserDetails {
 
     @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
+            name = "users_roles",
+            joinColumns = @JoinColumn(name = "users_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     private Set<Role> roles = new HashSet<>();

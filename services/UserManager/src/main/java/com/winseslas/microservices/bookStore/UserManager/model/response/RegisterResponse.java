@@ -9,10 +9,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class NoContentResponse {
+public class RegisterResponse {
+    private Long userId;
+    private String value;
     private String message;
-
-    public static NoContentResponse message(String message) {
-        return builder().message(message).build();
-    }
 }

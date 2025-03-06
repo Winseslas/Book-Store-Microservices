@@ -4,3 +4,8 @@ spring:
     version: 1.0.0
   config:
     import: optional:configserver:http://localhost:8888
+
+  # Kafka Properties
+
+
+# Actuator Prometheus Endpoint

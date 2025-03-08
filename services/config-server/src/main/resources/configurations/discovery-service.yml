@@ -1,6 +1,7 @@
 eureka:
   instance:
-    hostname: localhost
+    hostname: ms_discovery_service
+    prefer-ip-address: true
   client:
     registerWithEureka: false
     fetchRegistry: false

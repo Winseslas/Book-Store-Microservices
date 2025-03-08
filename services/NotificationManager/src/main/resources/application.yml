@@ -1,11 +1,117 @@
+server:
+  port: 9091
+
 spring:
   application:
-    name: Notification Manager Service
+    name: notification-service   
     version: 1.0.0
   config:
-    import: optional:configserver:http://localhost:8888
+    import: optional:configserver:http://ms_config_server:8888
+
+  # Mail Configuration
+  mail:
+    host: ms_mail_dev
+    port: 1025
+    # username: ${MAIL_USERNAME}
+    # password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
   # Kafka Properties
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVERS:ms_kafka:9092}
+    consumer:
+      group-id: notification-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.winseslas.microservices.bookStore.NotificationManager.model"
 
+# Twilio Configuration
+twilio:
+  account:
+    sid: ${TWILIO_ACCOUNT_SID}
+    auth:
+      token: ${TWILIO_AUTH_TOKEN}
+  phone:
+    number: ${TWILIO_PHONE_NUMBER}
+
+# Alert Configuration
+alert:
+  admin:
+    email: ${ALERT_ADMIN_EMAIL:admin@bookstore.com}
+  slack:
+    webhook: ${ALERT_SLACK_WEBHOOK:}
+  thresholds:
+    success-rate:
+      warning: 90
+      error: 80
+      critical: 70
+    response-time:
+      warning: 5000
+      error: 7000
+      critical: 10000
+    error-count:
+      warning: 20
+      error: 50
+      critical: 100
+    resource-usage:
+      cpu:
+        warning: 70
+        error: 80
+        critical: 90
+      memory:
+        warning: 70
+        error: 80
+        critical: 90
+  cooldown:
+    info: 60
+    warning: 30
+    error: 15
+    critical: 5
 
 # Actuator Prometheus Endpoint
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      sla:
+        http.server.requests: 1ms,5ms,10ms,50ms,100ms,200ms,500ms,1s
+    enable:
+      jvm: true
+      process: true
+      system: true
+      logback: true
+      kafka: true
+
+logging:
+  level:
+    com.winseslas.microservices.bookStore.NotificationManager: DEBUG
+    org.springframework.kafka: INFO
+    org.springframework.mail: INFO
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/notification-manager.log
+    max-size: 10MB
+    max-history: 7

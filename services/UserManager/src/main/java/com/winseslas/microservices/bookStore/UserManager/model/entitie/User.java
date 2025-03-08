@@ -61,6 +61,7 @@ public class User implements UserDetails {
     @Column(length = 1000)
     private String description;
 
+    @Builder.Default
     @Column(nullable = false)
     private boolean isActive = true;
 
@@ -73,6 +74,7 @@ public class User implements UserDetails {
     @Column(unique = true)
     private String phoneNumber;
 
+    @Builder.Default
     @Column
     private Integer failedLoginCount = 0;
 
@@ -89,6 +91,7 @@ public class User implements UserDetails {
     @JoinColumn(name = "bpartner_id", referencedColumnName = "id")
     private BPartner bpartner;
 
+    @Builder.Default
     @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinTable(
             name = "users_roles",
@@ -132,7 +135,7 @@ public class User implements UserDetails {
 
     @Override
     public boolean isAccountNonExpired() {
-        return UserDetails.super.isAccountNonExpired();
+        return true; // Par défaut, le compte n'expire pas
     }
 
     @Override
@@ -142,7 +145,7 @@ public class User implements UserDetails {
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return UserDetails.super.isCredentialsNonExpired();
+        return true; // Par défaut, les credentials n'expirent pas
     }
 
     @Override

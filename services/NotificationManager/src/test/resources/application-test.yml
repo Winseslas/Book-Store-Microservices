@@ -1,0 +1,83 @@
+server:
+  port: 0  # Port aléatoire pour les tests
+
+spring:
+  application:
+    name: notification-service-test
+  
+  # Mail Configuration
+  mail:
+    host: localhost
+    port: 2525
+    username: test
+    password: test
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+  
+  # Kafka Properties
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers}
+    consumer:
+      group-id: notification-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.winseslas.microservices.bookStore.NotificationManager.model"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+# Twilio Configuration
+twilio:
+  account-sid: test-sid
+  auth-token: test-token
+  phone-number: +1234567890
+
+# Alert Configuration
+alert:
+  admin:
+    email: admin@test.com
+  slack:
+    webhook: http://test.webhook.com
+  thresholds:
+    success-rate:
+      warning: 90
+      error: 80
+      critical: 70
+    response-time:
+      warning: 5000
+      error: 7000
+      critical: 10000
+    error-count:
+      warning: 20
+      error: 50
+      critical: 100
+    resource-usage:
+      cpu:
+        warning: 70
+        error: 80
+        critical: 90
+      memory:
+        warning: 70
+        error: 80
+        critical: 90
+  cooldown:
+    info: 60
+    warning: 30
+    error: 15
+    critical: 5
+
+# Disable actuator endpoints for tests
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never

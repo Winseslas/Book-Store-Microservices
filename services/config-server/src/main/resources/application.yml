@@ -24,7 +24,7 @@ spring:
     active: native
 
 server:
-  port: 8888
+  port: 8888  # Config Server
 
 logging:
   level:

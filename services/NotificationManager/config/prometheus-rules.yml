@@ -1,0 +1,52 @@
+groups:
+  - name: notification_alerts
+    rules:
+      - alert: HighNotificationFailureRate
+        expr: |
+          (sum(rate(notification_error_total[5m])) by (type) / sum(rate(notification_total[5m])) by (type)) * 100 > 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High notification failure rate for {{ $labels.type }}"
+          description: "Notification failure rate is {{ $value }}% for type {{ $labels.type }}"
+
+      - alert: SlowNotificationProcessing
+        expr: |
+          rate(notification_duration_seconds_sum[5m]) / rate(notification_duration_seconds_count[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow notification processing for {{ $labels.type }}"
+          description: "Average processing time is {{ $value }}s for type {{ $labels.type }}"
+
+      - alert: HighResourceUsage
+        expr: |
+          process_cpu_usage > 0.8 or process_memory_usage > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High resource usage detected"
+          description: "CPU: {{ $value }}% or Memory usage is high"
+
+      - alert: KafkaConsumerLag
+        expr: |
+          kafka_consumer_fetch_manager_records_lag > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Kafka consumer lag"
+          description: "Consumer lag is {{ $value }} messages"
+
+      - alert: NotificationQueueBacklog
+        expr: |
+          sum(increase(notification_total[5m])) by (type) - sum(increase(notification_success_total[5m])) by (type) > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Large notification queue backlog for {{ $labels.type }}"
+          description: "Queue backlog is {{ $value }} messages"

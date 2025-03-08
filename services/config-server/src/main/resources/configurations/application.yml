@@ -1,12 +1,24 @@
 eureka:
   instance:
-    hostname: localhost
+    hostname: ms_discovery_service
+    prefer-ip-address: true
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
-name:
-  value: eureka
+      defaultZone: http://ms_discovery_service:8761/eureka
+
 spring:
+  kafka:
+    bootstrap-servers: ms_kafka:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: ${spring.application.name}-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.winseslas.microservices.bookStore.*"
   cloud:
     config:
       override-system-properties: false
@@ -15,6 +27,9 @@ spring:
       enabled: true
     livereload:
       enabled: true
+
+name:
+  value: eureka
 
 management:
   tracing:

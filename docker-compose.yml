@@ -1,6 +1,133 @@
-version: "3.9"
+# Book Store Microservices Architecture
+# Ports configuration:
+# - Infrastructure: 8xxx (Config: 8888, Eureka: 8761, Gateway: 8080)
+# - Business Services: 9xxx (User: 9090, Stock: 9093, Notification: 9091)
+# - Databases: 6xxx (User: 6343, Stock: 6344, Notification: 6345)
+# - Monitoring: Prometheus: 8090, Grafana: 3000
+# - Tools: PGAdmin: 5080, MongoDB UI: 8081, Mail UI: 8025
+
 services:
-  # Database for all services
+  # Infrastructure Services
+  config-server:
+    container_name: ms_config_server
+    build:
+      context: ./services/config-server
+      dockerfile: Dockerfile
+    ports:
+      - "8889:8888"  # Config Server (external:internal)
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    networks:
+      - microservices-net
+    restart: unless-stopped
+
+  discovery-service:
+    container_name: ms_discovery_service
+    build:
+      context: ./services/discovery
+      dockerfile: Dockerfile
+    ports:
+      - "8762:8761"  # Eureka Server (external:internal)
+    networks:
+      - microservices-net
+    depends_on:
+      - config-server
+    restart: unless-stopped
+
+  gateway:
+    container_name: ms_gateway_service
+    build:
+      context: ./services/gateway
+      dockerfile: Dockerfile
+    ports:
+      - "9080:8080"  # API Gateway (external:internal)
+    networks:
+      - microservices-net
+    depends_on:
+      - discovery-service
+    restart: unless-stopped
+
+  # Business Services
+  user-manager:
+    container_name: ms_user_manager
+    build:
+      context: ./services/UserManager
+      dockerfile: Dockerfile
+    ports:
+      - "9090:9090"  # User Manager Service
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/usermanager
+      - SPRING_KAFKA_BOOTSTRAP-SERVERS=kafka:9092
+      - MAVEN_OPTS=-Dmaven.wagon.http.pool=false
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    networks:
+      - microservices-net
+    depends_on:
+      - postgres
+      - discovery-service
+    restart: unless-stopped
+
+  book-stock-manager:
+    container_name: ms_book_stock_manager
+    build:
+      context: ./services/BookStockManager
+      dockerfile: Dockerfile
+    ports:
+      - "9093:9092"  # Book Stock Manager Service (external:internal)
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bookstockmanager
+      - SPRING_KAFKA_BOOTSTRAP-SERVERS=kafka:9092
+      - MAVEN_OPTS=-Dmaven.wagon.http.pool=false
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    networks:
+      - microservices-net
+    depends_on:
+      - postgres
+      - discovery-service
+    restart: unless-stopped
+
+  notification-manager:
+    container_name: ms_notification_manager
+    build:
+      context: ./services/NotificationManager
+      dockerfile: Dockerfile
+    ports:
+      - "9091:9091"  # Notification Manager Service
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/notificationmanager
+      - SPRING_MAIL_HOST=mail-dev
+      - SPRING_MAIL_PORT=1025
+      - SPRING_KAFKA_BOOTSTRAP-SERVERS=kafka:9092
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
+      - MAVEN_OPTS=-Dmaven.wagon.http.pool=false
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    networks:
+      - microservices-net
+    depends_on:
+      - postgres
+      - mail-dev
+      - kafka
+      - discovery-service
+    restart: unless-stopped
+  
+  #############################################
+  # Databases and Storage
+  #############################################
   postgres:
     container_name: ms_postgresql
     image: postgres:17.2
@@ -11,7 +138,10 @@ services:
     volumes:
       - postgres:/var/lib/postgresql/data
     ports:
-      - "6345:5432"
+      # Exposition de 3 ports différents pour les 3 bases de données
+      - "6343:5432"  # User Manager DB
+      - "6344:5432"  # Book Stock Manager DB
+      - "6345:5432"  # Notification Manager DB
     networks:
       - microservices-net
     restart: unless-stopped
@@ -64,14 +194,86 @@ services:
       - microservices-net
     restart: unless-stopped
 
-  # This is the default settings for the mails server
+  #############################################
+  # Message Brokers and Event Processing
+  #############################################
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.9.0
+    container_name: ms_zookeeper
+    environment:
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "22181:2181"
+    networks:
+      - microservices-net
+
+  kafka:
+    image: confluentinc/cp-kafka:7.9.0
+    container_name: ms_kafka
+    ports:
+      - "9092:9092"  # Port Kafka standard
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+    networks:
+      - microservices-net
+
+  #############################################
+  # Development Tools and Services
+  #############################################
   mail-dev:
     container_name: ms_mail_dev
     image: mailhog/mailhog:v1.0.1
     ports:
       - "8025:8025"
-      - "1025:1025"
+      - "2525:1025"  # SMTP port
     restart: unless-stopped
+
+  #############################################
+  # Monitoring and Observability
+  #############################################
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ms_prometheus
+    ports:
+      - "8090:9090"
+    volumes:
+      - ./services/NotificationManager/config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./services/NotificationManager/config/prometheus-rules.yml:/etc/prometheus/prometheus-rules.yml
+      - ./monitoring/data/prometheus:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+    networks:
+      - microservices-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ms_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./monitoring/data/grafana:/var/lib/grafana
+      - ./services/NotificationManager/config/grafana-dashboard.json:/etc/grafana/provisioning/dashboards/notification-dashboard.json
+    depends_on:
+      - prometheus
+    networks:
+      - microservices-net
 
 networks:
   microservices-net:

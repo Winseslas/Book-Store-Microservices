@@ -4,7 +4,7 @@ app:
 spring:
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:6345/usermanager?useUnicode=true&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTC&currentSchema=bookstore
+    url: jdbc:postgresql://localhost:6343/usermanager?useUnicode=true&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTC&currentSchema=bookstore
     username: postgres
     password: postgres
     hikari:
@@ -32,7 +32,7 @@ cache:
   type: ehcache
 
 server:
-  port: 9090
+  port: 9090  # User Manager Service
 
 springdoc:
   api-docs:

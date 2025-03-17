@@ -1,31 +1,40 @@
 app:
-  base-url: http://localhost:9090
+  base-url: http://ms_user_manager:9090
 
 spring:
   datasource:
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:6343/usermanager?useUnicode=true&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTC&currentSchema=bookstore
+    url: jdbc:postgresql://ms_user_manager_db:5432/usermanager?currentSchema=bookstore
     username: postgres
     password: postgres
+    driver-class-name: org.postgresql.Driver
     hikari:
+      connection-timeout: 30000
       maximum-pool-size: 10
       minimum-idle: 5
+      idle-timeout: 300000
+      pool-name: UserManagerHikariPool
+      validation-timeout: 5000
+      max-lifetime: 1200000
+      auto-commit: true
+      connection-test-query: SELECT 1
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        format_sql: true
+        default_schema: bookstore
+        jdbc:
+          lob:
+            non_contextual_creation: true
+  cloud:
+    config:
+      fail-fast: false
   devtools:
     restart:
       enabled: true
-    livereload:
-      enabled: true
-  jpa:
-    database: POSTGRESQL
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
-    hibernate:
-      ddl-auto: update
-    properties:
-      javax:
-        persistence:
-          validation:
-            mode: callback
-    show-sql: false
 
 # Enable caching
 cache:

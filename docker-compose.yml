@@ -1,11 +1,4 @@
 # Book Store Microservices Architecture
-# Ports configuration:
-# - Infrastructure: 8xxx (Config: 8888, Eureka: 8761, Gateway: 8080)
-# - Business Services: 9xxx (User: 9090, Stock: 9093, Notification: 9091)
-# - Databases: 6xxx (User: 6343, Stock: 6344, Notification: 6345)
-# - Monitoring: Prometheus: 8090, Grafana: 3000
-# - Tools: PGAdmin: 5080, MongoDB UI: 8081, Mail UI: 8025
-
 services:
   # Infrastructure Services
   config-server:
@@ -14,11 +7,18 @@ services:
       context: ./services/config-server
       dockerfile: Dockerfile
     ports:
-      - "8889:8888"  # Config Server (external:internal)
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
-      - 1.1.1.1
+      - "18888:8888"  # Config Server (external:internal)
+    environment:
+      - SPRING_PROFILES_ACTIVE=native
+      - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS=/config-repo
+    volumes:
+      - ./services/config-server/src/main/resources/configurations:/config-repo
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8888/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     networks:
       - microservices-net
     restart: unless-stopped
@@ -29,11 +29,20 @@ services:
       context: ./services/discovery
       dockerfile: Dockerfile
     ports:
-      - "8762:8761"  # Eureka Server (external:internal)
+      - "18761:8761"  # Eureka Server (external:internal)
+    environment:
+      - SPRING_CLOUD_CONFIG_URI=http://ms_config_server:18888
     networks:
       - microservices-net
     depends_on:
-      - config-server
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8761/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
 
   gateway:
@@ -42,7 +51,7 @@ services:
       context: ./services/gateway
       dockerfile: Dockerfile
     ports:
-      - "9080:8080"  # API Gateway (external:internal)
+      - "18080:8080"  # API Gateway (external:internal)
     networks:
       - microservices-net
     depends_on:
@@ -58,18 +67,44 @@ services:
     ports:
       - "9090:9090"  # User Manager Service
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/usermanager
+      - SPRING_APPLICATION_NAME=User Manager Service
+      - SPRING_CLOUD_CONFIG_URI=http://ms_config_server:18888
+      - SPRING_CLOUD_CONFIG_FAIL_FAST=true
+      - SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL=2000
+      - SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS=30
+      - SPRING_CLOUD_CONFIG_RETRY_MAX_INTERVAL=5000
+      - SPRING_PROFILES_ACTIVE=default
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://ms_config_server:8888
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://ms_user_manager_db:5432/usermanager?currentSchema=bookstore
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_SHOW_SQL=true
       - SPRING_KAFKA_BOOTSTRAP-SERVERS=kafka:9092
-      - MAVEN_OPTS=-Dmaven.wagon.http.pool=false
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
-      - 1.1.1.1
+      - SPRING_KAFKA_PRODUCER_KEY-SERIALIZER=org.apache.kafka.common.serialization.StringSerializer
+      - SPRING_KAFKA_PRODUCER_VALUE-SERIALIZER=org.springframework.kafka.support.serializer.JsonSerializer
+      - SPRING_KAFKA_CONSUMER_GROUP-ID=user-manager-group
+      - SPRING_KAFKA_CONSUMER_AUTO-OFFSET-RESET=earliest
+      - SPRING_KAFKA_CONSUMER_KEY-DESERIALIZER=org.apache.kafka.common.serialization.StringDeserializer
+      - SPRING_KAFKA_CONSUMER_VALUE-DESERIALIZER=org.springframework.kafka.support.serializer.JsonDeserializer
     networks:
       - microservices-net
     depends_on:
-      - postgres
-      - discovery-service
+      config-server:
+        condition: service_healthy
+      ms_user_manager_db:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:9090/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
 
   book-stock-manager:
@@ -78,20 +113,18 @@ services:
       context: ./services/BookStockManager
       dockerfile: Dockerfile
     ports:
-      - "9093:9092"  # Book Stock Manager Service (external:internal)
+      - "19092:9092"  # Book Stock Manager Service (external:internal)
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bookstockmanager
+      - SPRING_CLOUD_CONFIG_URI=http://ms_config_server:18888
       - SPRING_KAFKA_BOOTSTRAP-SERVERS=kafka:9092
       - MAVEN_OPTS=-Dmaven.wagon.http.pool=false
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
-      - 1.1.1.1
+
     networks:
       - microservices-net
     depends_on:
-      - postgres
+      - ms_book_stock_manager_db
       - discovery-service
+      - config-server
     restart: unless-stopped
 
   notification-manager:
@@ -100,9 +133,9 @@ services:
       context: ./services/NotificationManager
       dockerfile: Dockerfile
     ports:
-      - "9091:9091"  # Notification Manager Service
+      - "19091:9091"  # Notification Manager Service
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/notificationmanager
+      - SPRING_CLOUD_CONFIG_URI=http://ms_config_server:18888
       - SPRING_MAIL_HOST=mail-dev
       - SPRING_MAIL_PORT=1025
       - SPRING_KAFKA_BOOTSTRAP-SERVERS=kafka:9092
@@ -112,42 +145,92 @@ services:
       - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
       - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
       - MAVEN_OPTS=-Dmaven.wagon.http.pool=false
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
-      - 1.1.1.1
+
     networks:
       - microservices-net
     depends_on:
-      - postgres
+      - ms_notification_manager_db
       - mail-dev
       - kafka
       - discovery-service
+      - config-server
     restart: unless-stopped
   
   #############################################
   # Databases and Storage
   #############################################
-  postgres:
-    container_name: ms_postgresql
+  # User Manager Database
+  ms_user_manager_db:
+    container_name: ms_user_manager_db
+    image: postgres:17.2
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=usermanager
+      - POSTGRES_SCHEMA=bookstore
+      - PGDATA=/var/lib/postgresql/data
+    volumes:
+      - user_manager_db:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "6343:5432"  # User Manager DB (selon la configuration standard)
+    networks:
+      - microservices-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d usermanager && psql -U postgres -d usermanager -c 'SELECT 1 FROM pg_database' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    command: [
+      "postgres",
+      "-c", "max_connections=100",
+      "-c", "shared_buffers=256MB",
+      "-c", "effective_cache_size=768MB",
+      "-c", "maintenance_work_mem=64MB",
+      "-c", "checkpoint_completion_target=0.9",
+      "-c", "wal_buffers=7864kB",
+      "-c", "default_statistics_target=100",
+      "-c", "random_page_cost=1.1",
+      "-c", "effective_io_concurrency=200"
+    ]
+    restart: unless-stopped
+
+  # Book Stock Manager Database
+  ms_book_stock_manager_db:
+    container_name: ms_book_stock_manager_db
     image: postgres:17.2
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - PGDATA=/var/lib/postgresql/data
     volumes:
-      - postgres:/var/lib/postgresql/data
+      - book_stock_manager_db:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
-      # Exposition de 3 ports différents pour les 3 bases de données
-      - "6343:5432"  # User Manager DB
       - "6344:5432"  # Book Stock Manager DB
+    networks:
+      - microservices-net
+    restart: unless-stopped
+
+  # Notification Manager Database
+  ms_notification_manager_db:
+    container_name: ms_notification_manager_db
+    image: postgres:17.2
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - PGDATA=/var/lib/postgresql/data
+    volumes:
+      - notification_manager_db:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
       - "6345:5432"  # Notification Manager DB
     networks:
       - microservices-net
     restart: unless-stopped
 
   pgadmin:
-    container_name: ms_pgadmin
     image: dpage/pgadmin4:8.14.0
     # image: dpage/pgadmin4
     environment:
@@ -158,7 +241,8 @@ services:
     volumes:
       - pgadmin:/var/lib/pgadmin
     ports:
-      - "5080:80"
+      - "15080:80"
+    container_name: ms_pgadmin
     networks:
       - microservices-net
     restart: unless-stopped
@@ -189,7 +273,7 @@ services:
       - ME_CONFIG_BASICAUTH_USERNAME=admin
       - ME_CONFIG_BASICAUTH_PASSWORD=tribes
     ports:
-      - "8081:8081"
+      - "18081:8081"
     networks:
       - microservices-net
     restart: unless-stopped
@@ -208,6 +292,12 @@ services:
       - "22181:2181"
     networks:
       - microservices-net
+    healthcheck:
+      test: echo stat | nc localhost 2181 || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
   kafka:
     image: confluentinc/cp-kafka:7.9.0
@@ -215,16 +305,30 @@ services:
     ports:
       - "9092:9092"  # Port Kafka standard
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     environment:
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 3
     networks:
       - microservices-net
+    healthcheck:
+      test: kafka-topics --bootstrap-server localhost:9092 --list || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
 
   #############################################
   # Development Tools and Services
@@ -280,6 +384,8 @@ networks:
     driver: bridge
 
 volumes:
-  postgres:
+  user_manager_db:
+  book_stock_manager_db:
+  notification_manager_db:
   pgadmin:
   mongo:

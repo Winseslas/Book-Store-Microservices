@@ -1,10 +1,10 @@
 app:
-  base-url: http://localhost:9092  # Book Stock Manager Service
+  base-url: http://ms_book_stock_manager:19092  # Book Stock Manager Service
 
 spring:
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:6344/bookstockmanager?useUnicode=true&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTC
+    url: jdbc:postgresql://ms_book_stock_manager_db:5432/bookstockmanager?useUnicode=true&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTC
     username: postgres
     password: postgres
     hikari:

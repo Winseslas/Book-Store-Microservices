@@ -1,7 +1,11 @@
+spring:
+  freemarker:
+    template-loader-path: classpath:/templates/
+    prefer-file-system-access: false
+
 eureka:
   instance:
-    hostname: ms_discovery_service
-    prefer-ip-address: true
+    hostname: localhost
   client:
     registerWithEureka: false
     fetchRegistry: false
@@ -9,4 +13,4 @@ eureka:
       defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/
 
 server:
-  port: 8761
+  port: 18761

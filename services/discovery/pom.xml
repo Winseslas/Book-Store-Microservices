@@ -9,7 +9,7 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.winseslas.microservices.bookStore</groupId>
-	<artifactId>discovery</artifactId>
+	<artifactId>discovery-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>discovery</name>
 	<description>The Discovery microservice is an essential component of the microservices architecture of the library management project. It acts as a service registry, enabling other microservices to dynamically discover their network addresses and ensure smooth communication between them.</description>

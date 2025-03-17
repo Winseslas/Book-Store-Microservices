@@ -1,16 +1,52 @@
 spring:
   application:
     name: User Manager Service
-    version: 1.0.0
   config:
     import: optional:configserver:http://ms_config_server:8888
-  kafka:
-    bootstrap-servers: ms_kafka:9092
-    topic:
-      user-events: user-events
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  cloud:
+    config:
+      enabled: true
+      fail-fast: false
+      uri: http://ms_config_server:8888
+      retry:
+        max-attempts: 30
+        initial-interval: 1000
+        max-interval: 2000
+        multiplier: 1.1
+      request-connect-timeout: 5000
+      request-read-timeout: 5000
+    discovery:
+      enabled: true
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:6343/usermanager?currentSchema=bookstore}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 60000
+      maximum-pool-size: 5
+      minimum-idle: 2
+      idle-timeout: 300000
+      pool-name: UserManagerHikariPool
+      validation-timeout: 10000
+      max-lifetime: 1200000
+      connection-test-query: SELECT 1
+      initialization-fail-timeout: 60000
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        default_schema: bookstore
+        format_sql: true
+        show_sql: true
+        use_sql_comments: true
+        jdbc:
+          lob:
+            non_contextual_creation: true
+    generate-ddl: true
 
 application:
   security:
